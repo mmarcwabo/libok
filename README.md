@@ -1,6 +1,6 @@
 # Libok - A Clean Architecture PHP Project
 
-**Libok** is a professional PHP project boilerplate built on the principles of Clean Architecture. It comes with ready-to-use features like user authentication and management, using modern tools like Doctrine ORM and Bootstrap 5.
+**Libok** is a PHP project boilerplate built on the principles of Clean Architecture. It comes with ready-to-use features like user authentication and management, using Doctrine ORM and Bootstrap 5 fot UI.
 
 ## Features
 
@@ -41,15 +41,19 @@
 4.  **Create the database schema:**
     Run the Doctrine command-line tool to create the necessary tables in your database.
     ```bash
-    vendor/bin/doctrine orm:schema-tool:create
+    composer schema-create
     ```
 
 ## Running the Project
 
-You can use PHP's built-in web server to run the application locally.
+Use PHP's built-in web server to run the application locally.
 
 1.  **Start the server:**
     Run this command from the project's root directory.
+    ```bash
+    composer serve
+    ```
+    This is equivalent to:
     ```bash
     php -S localhost:8000 -t public
     ```
