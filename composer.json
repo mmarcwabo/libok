@@ -35,6 +35,9 @@
     "scripts": {
         "test": "vendor/bin/phpunit --colors=always --display-deprecations --display-notices --display-warnings",
         "create-schema": "vendor/bin/doctrine orm:schema-tool:create",
-        "serve": "php -S localhost:8000 -t public"
+        "serve": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php -S localhost:8000 -t public"
+        ]
     }
 }
