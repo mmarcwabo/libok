@@ -22,7 +22,8 @@
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://your-repository-url/libok.git
+    git clone https://github.com/mmarcwabo/libok.git
+
     cd libok
     ```
 
