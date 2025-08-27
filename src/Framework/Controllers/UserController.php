@@ -82,7 +82,6 @@ class UserController extends BaseController
         $user = $getUserUseCase->execute($userId);
 
         if (!$user) {
-            // In a real app, you'd use flash messages for errors
             (new RedirectResponse('/users'))->send();
             return;
         }
@@ -116,7 +115,6 @@ class UserController extends BaseController
         $this->guard();
         $userId = $request->request->get('id');
 
-        // Prevent users from deleting themselves for simplicity
         if ($userId === $_SESSION['user_id']) {
             (new RedirectResponse('/users'))->send();
             return;

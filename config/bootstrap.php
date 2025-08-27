@@ -14,15 +14,18 @@ $config = ORMSetup::createAttributeMetadataConfiguration(
 
 // Database connection configuration
 $connectionParams = [
-    'driver'   => $_ENV['DB_DRIVER'] ?? 'pdo_mysql',
-    'host'     => $_ENV['DB_HOST'] ?? '127.0.0.1',
-    'port'     => $_ENV['DB_PORT'] ?? '3306',
-    'user'     => $_ENV['DB_USER'] ?? 'root',
-    'password' => $_ENV['DB_PASSWORD'] ?? '',
-    'dbname'   => $_ENV['DB_NAME'] ?? 'libok_db',
+    'driver'   => $_ENV['DB_DRIVER'],
+    'host'     => $_ENV['DB_HOST'],
+    'port'     => $_ENV['DB_PORT'],
+    'user'     => $_ENV['DB_USER'],
+    'password' => $_ENV['DB_PASSWORD'],
+    'dbname'   => $_ENV['DB_NAME'],
 ];
 
 $connection = DriverManager::getConnection($connectionParams, $config);
+if (! $connection) {
+    throw new Exception("Database configuration: correct parameters are missing. Please check them.");
+}
 $entityManager = new EntityManager($connection, $config);
 
 // Access the EntityManager

@@ -25,7 +25,6 @@ class Router
         if (array_key_exists($routeKey, $this->routes)) {
             [$controllerClass, $methodName] = $this->routes[$routeKey];
 
-            // A real app would use a DI container
             $entityManager = getEntityManager();
             $controller = new $controllerClass($entityManager);
 
