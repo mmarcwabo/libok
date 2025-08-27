@@ -20,7 +20,8 @@
         "symfony/cache": "~7.3"
     },
     "require-dev": {
-        "phpunit/phpunit": "~10.0"
+        "phpunit/phpunit": "~10.0",
+        "phpstan/phpstan": "~2.1"
     },
     "autoload": {
         "psr-4": {

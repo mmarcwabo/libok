@@ -9,7 +9,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 // Create a simple "default" Doctrine ORM configuration
 $config = ORMSetup::createAttributeMetadataConfiguration(
     paths: [__DIR__ . '/../src/Domain/Entities'],
-    isDevMode: true,
+    isDevMode: $_ENV['DEV_MODE'] ?? true,
 );
 
 // Database connection configuration
@@ -25,7 +25,7 @@ $connectionParams = [
 $connection = DriverManager::getConnection($connectionParams, $config);
 $entityManager = new EntityManager($connection, $config);
 
-// Function to access the EntityManager
+// Access the EntityManager
 function getEntityManager(): EntityManager
 {
     global $entityManager;
