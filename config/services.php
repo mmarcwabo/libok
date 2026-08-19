@@ -10,8 +10,11 @@ use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\ORMSetup;
 use Libok\Application\Contracts\CacheStoreInterface;
+use Libok\Application\Contracts\JobQueueInterface;
+use Libok\Application\Contracts\MailerInterface;
 use Libok\Application\Contracts\MalwareScannerInterface;
 use Libok\Application\Contracts\ObjectStorageInterface;
+use Libok\Application\Contracts\OutboxWriterInterface;
 use Libok\Application\Contracts\RateLimiterInterface;
 use Libok\Application\UseCases\Auth\LoginUseCase;
 use Libok\Application\UseCases\Auth\LogoutUseCase;
@@ -37,21 +40,30 @@ use Libok\Framework\Controllers\HealthController;
 use Libok\Framework\Controllers\UserController;
 use Libok\Framework\Middleware\AuditMiddleware;
 use Libok\Framework\Middleware\AuthRateLimitMiddleware;
+use Libok\Framework\Middleware\IdempotencyMiddleware;
 use Libok\Framework\Middleware\OperatorMiddleware;
 use Libok\Framework\Middleware\RateLimitMiddleware;
 use Libok\Framework\Middleware\TenantResetMiddleware;
 use Libok\Framework\Middleware\TenantResolutionMiddleware;
 use Libok\Infrastructure\Cache\FilesystemCacheStore;
 use Libok\Infrastructure\Cache\FixedWindowRateLimiter;
+use Libok\Infrastructure\Mail\MailerService;
+use Libok\Infrastructure\Mail\NullMailer;
 use Libok\Infrastructure\Observability\ContextSanitizer;
 use Libok\Infrastructure\Observability\JsonLogger;
 use Libok\Infrastructure\Observability\RequestContext;
+use Libok\Infrastructure\Persistence\DoctrineOutboxWriter;
 use Libok\Infrastructure\Persistence\Filters\TenantFilter;
 use Libok\Infrastructure\Persistence\Listeners\TenantAssignmentSubscriber;
 use Libok\Infrastructure\Persistence\Repositories\DoctrineAuditLogRepository;
 use Libok\Infrastructure\Persistence\Repositories\DoctrineItemRepository;
 use Libok\Infrastructure\Persistence\Repositories\DoctrineRefreshTokenRepository;
 use Libok\Infrastructure\Persistence\Repositories\DoctrineUserRepository;
+use Libok\Infrastructure\Queue\EmailJobHandler;
+use Libok\Infrastructure\Queue\FilesystemJobQueue;
+use Libok\Infrastructure\Queue\JobWorker;
+use Libok\Infrastructure\Queue\KernelWorker;
+use Libok\Infrastructure\Queue\OutboxPublisher;
 use Libok\Infrastructure\Services\AuditLogService;
 use Libok\Infrastructure\Services\FileStorageService;
 use Libok\Infrastructure\Services\JwtService;
@@ -207,7 +219,34 @@ $containerBuilder->addDefinitions([
     PasswordService::class => DI\autowire(),
     AuditLogService::class => DI\autowire(),
     AuditMiddleware::class => DI\autowire(),
+    IdempotencyMiddleware::class => DI\autowire(),
     OperatorMiddleware::class => DI\autowire(),
+    OutboxWriterInterface::class => DI\autowire(DoctrineOutboxWriter::class),
+    JobQueueInterface::class => DI\factory(static function (): JobQueueInterface {
+        $path = (string) ($_ENV['QUEUE_PATH'] ?? '');
+        if ($path === '') {
+            $path = LIBOK_STORAGE . '/queue';
+        }
+
+        return new FilesystemJobQueue($path);
+    }),
+    MailerInterface::class => DI\factory(static function (JobQueueInterface $queue, LoggerInterface $logger): MailerInterface {
+        $transport = strtolower((string) ($_ENV['MAIL_TRANSPORT'] ?? 'smtp'));
+        if ($transport === 'null') {
+            return new NullMailer();
+        }
+
+        return new MailerService($queue, $logger);
+    }),
+    OutboxPublisher::class => DI\autowire(),
+    JobWorker::class => DI\factory(static function (
+        JobQueueInterface $queue,
+        MailerInterface $mailer,
+        LoggerInterface $logger,
+    ): JobWorker {
+        return new JobWorker($queue, [new EmailJobHandler($mailer)], $logger);
+    }),
+    KernelWorker::class => DI\autowire(),
     UserRepositoryInterface::class => DI\autowire(DoctrineUserRepository::class),
     RefreshTokenRepositoryInterface::class => DI\autowire(DoctrineRefreshTokenRepository::class),
     AuditLogRepositoryInterface::class => DI\autowire(DoctrineAuditLogRepository::class),
@@ -215,7 +254,16 @@ $containerBuilder->addDefinitions([
     LoginUseCase::class => DI\autowire(),
     LogoutUseCase::class => DI\autowire(),
     RefreshTokenUseCase::class => DI\autowire(),
-    RegisterUserUseCase::class => DI\autowire(),
+    RegisterUserUseCase::class => DI\factory(static function (
+        UserRepositoryInterface $users,
+        PasswordService $passwords,
+        OutboxWriterInterface $outbox,
+        MailerInterface $mailer,
+        EntityManagerInterface $entityManager,
+        LoggerInterface $logger,
+    ): RegisterUserUseCase {
+        return new RegisterUserUseCase($users, $passwords, $outbox, $mailer, $entityManager, $logger);
+    }),
     ListUsersUseCase::class => DI\autowire(),
     FindUserUseCase::class => DI\autowire(),
     CreateUserUseCase::class => DI\autowire(),

@@ -36,3 +36,17 @@ $_ENV['JWT_ACCESS_TTL'] = '900';
 $_ENV['JWT_REFRESH_TTL'] = '1209600';
 $_SERVER['JWT_ACCESS_TTL'] = '900';
 $_SERVER['JWT_REFRESH_TTL'] = '1209600';
+
+$queuePath = $testStorage . DIRECTORY_SEPARATOR . 'queue';
+if (!is_dir($queuePath) && !mkdir($queuePath, 0750, true) && !is_dir($queuePath)) {
+    throw new RuntimeException('Unable to create test queue directory.');
+}
+putenv('QUEUE_PATH=' . $queuePath);
+$_ENV['QUEUE_PATH'] = $queuePath;
+$_SERVER['QUEUE_PATH'] = $queuePath;
+$_ENV['MAIL_TRANSPORT'] = 'null';
+$_SERVER['MAIL_TRANSPORT'] = 'null';
+$_ENV['MAIL_SYNC'] = 'false';
+$_SERVER['MAIL_SYNC'] = 'false';
+$_ENV['QUEUE_DRIVER'] = 'filesystem';
+$_SERVER['QUEUE_DRIVER'] = 'filesystem';

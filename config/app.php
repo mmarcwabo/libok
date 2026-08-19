@@ -9,6 +9,7 @@ use Libok\Framework\Middleware\AuditMiddleware;
 use Libok\Framework\Middleware\AuthMiddleware;
 use Libok\Framework\Middleware\AuthRateLimitMiddleware;
 use Libok\Framework\Middleware\CorsMiddleware;
+use Libok\Framework\Middleware\IdempotencyMiddleware;
 use Libok\Framework\Middleware\JsonBodyMiddleware;
 use Libok\Framework\Middleware\OperatorMiddleware;
 use Libok\Framework\Middleware\RateLimitMiddleware;
@@ -34,6 +35,7 @@ $middlewareRegistry->register('request_context', RequestContextMiddleware::class
 $middlewareRegistry->register('cors', CorsMiddleware::class);
 $middlewareRegistry->register('security', SecurityHeadersMiddleware::class);
 $middlewareRegistry->register('json', JsonBodyMiddleware::class);
+$middlewareRegistry->register('idempotency', IdempotencyMiddleware::class);
 $middlewareRegistry->register('ratelimit', RateLimitMiddleware::class);
 $middlewareRegistry->register('auth_ratelimit', AuthRateLimitMiddleware::class);
 $middlewareRegistry->register('auth', AuthMiddleware::class);

@@ -16,6 +16,7 @@
         "doctrine/orm": "~2.15",
         "firebase/php-jwt": "6.4",
         "php-di/php-di": "^7.0",
+        "phpmailer/phpmailer": "~6.9",
         "psr/log": "^3.0",
         "ramsey/uuid": "~4.7",
         "symfony/cache": "~7.3",
@@ -51,6 +52,7 @@
         "migrate": "@php vendor/bin/doctrine-migrations migrations:migrate --no-interaction",
         "migrate-test": "@php vendor/bin/doctrine-migrations migrations:migrate --no-interaction",
         "schema-validate": "@php bin/doctrine orm:validate-schema --skip-sync",
+        "worker": "@php bin/libok worker --once",
         "serve": [
             "Composer\\Config::disableProcessTimeout",
             "@php -S localhost:8000 -t public"

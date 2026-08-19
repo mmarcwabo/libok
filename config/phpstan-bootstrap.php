@@ -17,3 +17,6 @@ $_ENV['LOG_DESTINATION'] = 'php://stderr';
 $_ENV['JWT_SECRET'] = 'libok-test-jwt-secret-32-bytes!!';
 $_ENV['JWT_ACCESS_TTL'] = '900';
 $_ENV['JWT_REFRESH_TTL'] = '1209600';
+$_ENV['MAIL_TRANSPORT'] = 'null';
+$_ENV['MAIL_SYNC'] = 'false';
+$_ENV['QUEUE_PATH'] = LIBOK_STORAGE . '/queue';

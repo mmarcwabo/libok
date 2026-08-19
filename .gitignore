@@ -4,5 +4,6 @@
 vendor
 /storage/cache
 /storage/test
+/storage/queue
 /storage/*.sqlite
 /storage/*.log

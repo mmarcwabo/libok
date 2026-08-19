@@ -1,0 +1,29 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+require_once dirname(__DIR__) . '/config/bootstrap.php';
+
+use Libok\Infrastructure\Queue\KernelWorker;
+
+$container = require dirname(__DIR__) . '/config/services.php';
+
+$command = $argv[1] ?? 'help';
+$once = in_array('--once', $argv, true);
+
+if ($command !== 'worker') {
+    fwrite(STDERR, "Usage: bin/libok worker [--once]\n");
+    exit($command === 'help' || $command === '--help' ? 0 : 1);
+}
+
+/** @var KernelWorker $worker */
+$worker = $container->get(KernelWorker::class);
+
+if ($once) {
+    $processed = $worker->runOnce();
+    fwrite(STDOUT, "Processed {$processed} job(s).\n");
+    exit(0);
+}
+
+$worker->work();

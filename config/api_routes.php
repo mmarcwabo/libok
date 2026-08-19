@@ -35,7 +35,7 @@ return static function (Router $router): void {
         $r->get('/items/{id}', [ItemController::class, 'show'], $tenant);
     };
 
-    $apiMiddleware = ['cors', 'security', 'json', 'audit'];
+    $apiMiddleware = ['cors', 'security', 'json', 'idempotency', 'audit'];
     $router->group('/api/v1', $apiMiddleware, $register);
     $router->group('/api', $apiMiddleware, $register);
 };

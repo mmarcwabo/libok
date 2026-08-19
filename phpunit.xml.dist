@@ -34,5 +34,9 @@
         <env name="JWT_SECRET" value="libok-test-jwt-secret-32-bytes!!" force="true"/>
         <env name="JWT_ACCESS_TTL" value="900" force="true"/>
         <env name="JWT_REFRESH_TTL" value="1209600" force="true"/>
+        <env name="MAIL_TRANSPORT" value="null" force="true"/>
+        <env name="MAIL_SYNC" value="false" force="true"/>
+        <env name="QUEUE_DRIVER" value="filesystem" force="true"/>
+        <env name="QUEUE_PATH" value="storage/test/queue" force="true"/>
     </php>
 </phpunit>

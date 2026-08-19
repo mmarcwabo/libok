@@ -28,6 +28,9 @@ class AuditMiddleware implements MiddlewareInterface
     public function process(Request $request, callable $next): Response
     {
         $response = $next($request);
+        if ($response->headers->get('X-Idempotent-Replay') === '1') {
+            return $response;
+        }
 
         $method = strtoupper($request->getMethod());
         if (!in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
