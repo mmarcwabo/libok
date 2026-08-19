@@ -16,12 +16,36 @@ class CreateUserUseCase
     ) {
     }
 
-    public function execute(string $name, string $email, string $password): User
+    /**
+     * @param list<string> $roles
+     */
+    public function execute(string $name, string $email, string $password, array $roles = [User::ROLE_MEMBER]): User
     {
-        if ($this->userRepository->findByEmail($email)) {
-            throw new \InvalidArgumentException("User with email {$email} already exists.");
+        $name = trim($name);
+        $email = strtolower(trim($email));
+
+        if ($name === '' || strlen($name) > 255) {
+            throw new \InvalidArgumentException('Name is required.');
         }
-        $user = new User($name, $email, $this->passwordService->hash($password));
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 255) {
+            throw new \InvalidArgumentException('A valid email is required.');
+        }
+        if ($this->userRepository->findByEmail($email)) {
+            throw new \InvalidArgumentException('User with this email already exists.');
+        }
+
+        $allowed = [
+            User::ROLE_MEMBER,
+            User::ROLE_MANAGER,
+            User::ROLE_ADMIN,
+            User::ROLE_SUPER_ADMIN,
+        ];
+        $roles = array_values(array_intersect($roles, $allowed));
+        if ($roles === []) {
+            $roles = [User::ROLE_MEMBER];
+        }
+
+        $user = new User($name, $email, $this->passwordService->hash($password), $roles);
         $this->userRepository->save($user);
 
         return $user;

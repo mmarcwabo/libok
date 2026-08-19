@@ -13,6 +13,12 @@ use Symfony\Component\HttpFoundation\Response;
 
 abstract class KernelTestCase extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->clearRateLimitCache();
+    }
+
     protected function bootApplication(): Application
     {
         if (!defined('LIBOK_ROOT')) {
@@ -27,13 +33,22 @@ abstract class KernelTestCase extends TestCase
 
     protected function ensureSchema(): EntityManagerInterface
     {
+        if (!defined('LIBOK_ROOT')) {
+            require_once dirname(__DIR__, 2) . '/config/bootstrap.php';
+        }
+
         $container = require dirname(__DIR__, 2) . '/config/services.php';
         /** @var EntityManagerInterface $entityManager */
         $entityManager = $container->get(EntityManagerInterface::class);
+        $connection = $entityManager->getConnection();
+        while ($connection->isTransactionActive()) {
+            $connection->rollBack();
+        }
         $tool = new SchemaTool($entityManager);
         $metadata = $entityManager->getMetadataFactory()->getAllMetadata();
         $tool->dropSchema($metadata);
         $tool->createSchema($metadata);
+        $entityManager->clear();
 
         return $entityManager;
     }
@@ -66,6 +81,30 @@ abstract class KernelTestCase extends TestCase
     }
 
     /**
+     * @param array<string, string> $headers
+     * @param array<string, string> $cookies
+     * @param array<string, mixed> $parameters
+     * @param array<string, \Symfony\Component\HttpFoundation\File\UploadedFile> $files
+     */
+    protected function kernelRequest(
+        string $method,
+        string $uri,
+        array $headers = [],
+        array $cookies = [],
+        array $parameters = [],
+        array $files = [],
+    ): Response {
+        $server = [];
+        foreach ($headers as $name => $value) {
+            $headerKey = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+            $server[$headerKey] = $value;
+        }
+        $request = Request::create($uri, $method, $parameters, $cookies, $files, $server);
+
+        return $this->bootApplication()->handle($request);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function cookiesFrom(Response $response): array
@@ -78,6 +117,18 @@ abstract class KernelTestCase extends TestCase
         }
 
         return array_filter($cookies, static fn (string $value): bool => $value !== '');
+    }
+
+    protected function clearRateLimitCache(): void
+    {
+        $dir = dirname(__DIR__, 2) . '/storage/cache/app';
+        if (!is_dir($dir)) {
+            return;
+        }
+        $files = glob($dir . '/*.cache') ?: [];
+        foreach ($files as $file) {
+            @unlink($file);
+        }
     }
 
     /** @return array<string, mixed> */

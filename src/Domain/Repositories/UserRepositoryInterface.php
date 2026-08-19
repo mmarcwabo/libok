@@ -14,6 +14,15 @@ interface UserRepositoryInterface
      * @return list<User>
      */
     public function findAll(): array;
+
+    /**
+     * @param 'asc'|'desc' $direction
+     * @return list<User>
+     */
+    public function paginate(int $page, int $perPage, string $sortField, string $direction): array;
+
+    public function countAll(): int;
+
     public function save(User $user): void;
     public function delete(User $user): void;
 }

@@ -12,11 +12,15 @@ class DeleteUserUseCase
     {
     }
 
-    public function execute(string $id): void
+    public function execute(string $id): bool
     {
         $user = $this->userRepository->findById($id);
-        if ($user) {
-            $this->userRepository->delete($user);
+        if ($user === null) {
+            return false;
         }
+
+        $this->userRepository->delete($user);
+
+        return true;
     }
 }

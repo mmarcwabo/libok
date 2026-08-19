@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Libok\Framework\Controllers\Api\AuthController;
+use Libok\Framework\Controllers\Api\UploadController;
+use Libok\Framework\Controllers\Api\UserController;
 use Libok\Framework\Controllers\HealthController;
 use Libok\Framework\Core\Router;
 
@@ -17,9 +19,18 @@ return static function (Router $router): void {
         $r->post('/auth/logout', [AuthController::class, 'logout']);
         $r->get('/me', [AuthController::class, 'me'], ['auth']);
         $r->get('/secure/ping', [AuthController::class, 'ping'], ['auth']);
+
+        $r->post('/uploads', [UploadController::class, 'store'], ['auth']);
+
+        $operator = ['auth', 'operator'];
+        $r->get('/users', [UserController::class, 'index'], $operator);
+        $r->post('/users', [UserController::class, 'store'], $operator);
+        $r->get('/users/{id}', [UserController::class, 'show'], $operator);
+        $r->patch('/users/{id}', [UserController::class, 'update'], $operator);
+        $r->delete('/users/{id}', [UserController::class, 'destroy'], $operator);
     };
 
-    $apiMiddleware = ['cors', 'security', 'json'];
+    $apiMiddleware = ['cors', 'security', 'json', 'audit'];
     $router->group('/api/v1', $apiMiddleware, $register);
     $router->group('/api', $apiMiddleware, $register);
 };

@@ -13,7 +13,6 @@ final class AuthApiTest extends KernelTestCase
     {
         parent::setUp();
         $this->ensureSchema();
-        $this->clearRateLimitCache();
     }
 
     public function testRegisterLoginMeRefreshLogout(): void
@@ -105,6 +104,7 @@ final class AuthApiTest extends KernelTestCase
         self::assertInstanceOf(User::class, $user);
         $user->setRoles([User::ROLE_ADMIN]);
         $entityManager->flush();
+        $entityManager->clear();
 
         $login = $this->jsonRequest('POST', '/api/v1/auth/login', [], [], [
             'email' => 'admin@example.test',
@@ -115,8 +115,11 @@ final class AuthApiTest extends KernelTestCase
         self::assertSame(200, $ping->getStatusCode());
         self::assertSame([User::ROLE_ADMIN], $this->decode((string) $ping->getContent())['data']['roles']);
 
+        $user = $entityManager->getRepository(User::class)->findOneBy(['email' => 'admin@example.test']);
+        self::assertInstanceOf(User::class, $user);
         $user->setRoles([User::ROLE_MEMBER]);
         $entityManager->flush();
+        $entityManager->clear();
 
         $pingAfterRevoke = $this->jsonRequest('GET', '/api/v1/secure/ping', [], $cookies);
         self::assertSame(200, $pingAfterRevoke->getStatusCode());
@@ -148,17 +151,5 @@ final class AuthApiTest extends KernelTestCase
         $container = require dirname(__DIR__, 2) . '/config/services.php';
 
         return $container->get(EntityManagerInterface::class);
-    }
-
-    private function clearRateLimitCache(): void
-    {
-        $dir = dirname(__DIR__, 2) . '/storage/cache/app';
-        if (!is_dir($dir)) {
-            return;
-        }
-        $files = glob($dir . '/*.cache') ?: [];
-        foreach ($files as $file) {
-            @unlink($file);
-        }
     }
 }

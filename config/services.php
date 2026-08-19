@@ -15,26 +15,40 @@ use Libok\Application\Contracts\RateLimiterInterface;
 use Libok\Application\UseCases\Auth\LoginUseCase;
 use Libok\Application\UseCases\Auth\LogoutUseCase;
 use Libok\Application\UseCases\Auth\RefreshTokenUseCase;
+use Libok\Application\UseCases\CreateUserUseCase;
+use Libok\Application\UseCases\DeleteUserUseCase;
+use Libok\Application\UseCases\FindUserUseCase;
+use Libok\Application\UseCases\ListUsersUseCase;
 use Libok\Application\UseCases\RegisterUserUseCase;
+use Libok\Application\UseCases\UpdateUserUseCase;
+use Libok\Domain\Repositories\AuditLogRepositoryInterface;
 use Libok\Domain\Repositories\RefreshTokenRepositoryInterface;
 use Libok\Domain\Repositories\UserRepositoryInterface;
 use Libok\Framework\Controllers\Api\AuthController as ApiAuthController;
+use Libok\Framework\Controllers\Api\UploadController;
+use Libok\Framework\Controllers\Api\UserController as ApiUserController;
 use Libok\Framework\Controllers\AuthController;
 use Libok\Framework\Controllers\HealthController;
 use Libok\Framework\Controllers\UserController;
+use Libok\Framework\Middleware\AuditMiddleware;
 use Libok\Framework\Middleware\AuthRateLimitMiddleware;
+use Libok\Framework\Middleware\OperatorMiddleware;
 use Libok\Framework\Middleware\RateLimitMiddleware;
 use Libok\Infrastructure\Cache\FilesystemCacheStore;
 use Libok\Infrastructure\Cache\FixedWindowRateLimiter;
 use Libok\Infrastructure\Observability\ContextSanitizer;
 use Libok\Infrastructure\Observability\JsonLogger;
 use Libok\Infrastructure\Observability\RequestContext;
+use Libok\Infrastructure\Persistence\Repositories\DoctrineAuditLogRepository;
 use Libok\Infrastructure\Persistence\Repositories\DoctrineRefreshTokenRepository;
 use Libok\Infrastructure\Persistence\Repositories\DoctrineUserRepository;
+use Libok\Infrastructure\Services\AuditLogService;
+use Libok\Infrastructure\Services\FileStorageService;
 use Libok\Infrastructure\Services\JwtService;
 use Libok\Infrastructure\Services\PasswordService;
 use Libok\Infrastructure\Storage\LocalPrivateStorage;
 use Libok\Infrastructure\Storage\NullMalwareScanner;
+use Libok\Infrastructure\Storage\S3CompatibleStorage;
 use Psr\Log\LoggerInterface;
 
 if (!function_exists('buildEntityManager')) {
@@ -43,7 +57,8 @@ if (!function_exists('buildEntityManager')) {
         static $memoryEm = null;
 
         $paths = [LIBOK_SRC . '/Domain/Entities'];
-        $isDevMode = filter_var($_ENV['APP_DEBUG'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $isTest = strtolower((string) ($_ENV['APP_ENV'] ?? '')) === 'test';
+        $isDevMode = $isTest || filter_var($_ENV['APP_DEBUG'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         $proxyDir = LIBOK_STORAGE . '/cache/proxies';
         if (!is_dir($proxyDir) && !mkdir($proxyDir, 0750, true) && !is_dir($proxyDir)) {
@@ -136,21 +151,37 @@ $containerBuilder->addDefinitions([
     AuthRateLimitMiddleware::class => DI\autowire(),
     MalwareScannerInterface::class => DI\get(NullMalwareScanner::class),
     ObjectStorageInterface::class => DI\factory(static function (MalwareScannerInterface $scanner): ObjectStorageInterface {
+        $driver = strtolower((string) ($_ENV['STORAGE_DRIVER'] ?? 'local'));
+        if ($driver === 's3') {
+            return S3CompatibleStorage::fromEnvironment($scanner);
+        }
         $root = (string) ($_ENV['STORAGE_PATH'] ?? LIBOK_STORAGE);
 
         return new LocalPrivateStorage($root, $scanner);
     }),
+    FileStorageService::class => DI\autowire(),
     JwtService::class => DI\autowire(),
     PasswordService::class => DI\autowire(),
+    AuditLogService::class => DI\autowire(),
+    AuditMiddleware::class => DI\autowire(),
+    OperatorMiddleware::class => DI\autowire(),
     UserRepositoryInterface::class => DI\autowire(DoctrineUserRepository::class),
     RefreshTokenRepositoryInterface::class => DI\autowire(DoctrineRefreshTokenRepository::class),
+    AuditLogRepositoryInterface::class => DI\autowire(DoctrineAuditLogRepository::class),
     LoginUseCase::class => DI\autowire(),
     LogoutUseCase::class => DI\autowire(),
     RefreshTokenUseCase::class => DI\autowire(),
     RegisterUserUseCase::class => DI\autowire(),
+    ListUsersUseCase::class => DI\autowire(),
+    FindUserUseCase::class => DI\autowire(),
+    CreateUserUseCase::class => DI\autowire(),
+    UpdateUserUseCase::class => DI\autowire(),
+    DeleteUserUseCase::class => DI\autowire(),
     HealthController::class => DI\autowire(),
     AuthController::class => DI\autowire(),
     ApiAuthController::class => DI\autowire(),
+    ApiUserController::class => DI\autowire(),
+    UploadController::class => DI\autowire(),
     UserController::class => DI\autowire(),
 ]);
 

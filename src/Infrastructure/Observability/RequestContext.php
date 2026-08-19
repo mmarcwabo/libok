@@ -15,6 +15,16 @@ final class RequestContext
         $this->correlationId = $correlationId;
     }
 
+    public function getRequestId(): ?string
+    {
+        return $this->requestId;
+    }
+
+    public function getCorrelationId(): ?string
+    {
+        return $this->correlationId;
+    }
+
     /** @return array{request_id?: string, correlation_id?: string} */
     public function asLogContext(): array
     {

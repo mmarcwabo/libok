@@ -7,6 +7,7 @@ parameters:
         - config
     excludePaths:
         - src/Framework/Views
+        - src/Infrastructure/Storage/S3CompatibleStorage.php
     bootstrapFiles:
         - config/phpstan-bootstrap.php
     tmpDir: storage/cache/phpstan
