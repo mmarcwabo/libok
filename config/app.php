@@ -15,6 +15,8 @@ use Libok\Framework\Middleware\RateLimitMiddleware;
 use Libok\Framework\Middleware\RequestContextMiddleware;
 use Libok\Framework\Middleware\SecurityHeadersMiddleware;
 use Libok\Framework\Middleware\SessionMiddleware;
+use Libok\Framework\Middleware\TenantResetMiddleware;
+use Libok\Framework\Middleware\TenantResolutionMiddleware;
 use Libok\Infrastructure\Observability\RequestContext;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -37,10 +39,13 @@ $middlewareRegistry->register('auth_ratelimit', AuthRateLimitMiddleware::class);
 $middlewareRegistry->register('auth', AuthMiddleware::class);
 $middlewareRegistry->register('operator', OperatorMiddleware::class);
 $middlewareRegistry->register('audit', AuditMiddleware::class);
+$middlewareRegistry->register('tenant_reset', TenantResetMiddleware::class);
+$middlewareRegistry->register('tenant', TenantResolutionMiddleware::class);
 $middlewareRegistry->register('session', SessionMiddleware::class);
 
 $router = new Router($container, $middlewareRegistry);
 $router->addGlobalMiddleware('request_context');
+$router->addGlobalMiddleware('tenant_reset');
 
 $registerApi = require __DIR__ . '/api_routes.php';
 $registerApi($router);

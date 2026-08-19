@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Libok\Framework\Controllers\Api\AuthController;
+use Libok\Framework\Controllers\Api\ItemController;
 use Libok\Framework\Controllers\Api\UploadController;
 use Libok\Framework\Controllers\Api\UserController;
 use Libok\Framework\Controllers\HealthController;
@@ -28,6 +29,10 @@ return static function (Router $router): void {
         $r->get('/users/{id}', [UserController::class, 'show'], $operator);
         $r->patch('/users/{id}', [UserController::class, 'update'], $operator);
         $r->delete('/users/{id}', [UserController::class, 'destroy'], $operator);
+
+        $tenant = ['auth', 'tenant'];
+        $r->post('/items', [ItemController::class, 'store'], $tenant);
+        $r->get('/items/{id}', [ItemController::class, 'show'], $tenant);
     };
 
     $apiMiddleware = ['cors', 'security', 'json', 'audit'];

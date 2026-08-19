@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use DI\ContainerBuilder;
+use Doctrine\Common\EventManager;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\ORM\EntityManager;
@@ -15,16 +16,20 @@ use Libok\Application\Contracts\RateLimiterInterface;
 use Libok\Application\UseCases\Auth\LoginUseCase;
 use Libok\Application\UseCases\Auth\LogoutUseCase;
 use Libok\Application\UseCases\Auth\RefreshTokenUseCase;
+use Libok\Application\UseCases\CreateItemUseCase;
 use Libok\Application\UseCases\CreateUserUseCase;
 use Libok\Application\UseCases\DeleteUserUseCase;
+use Libok\Application\UseCases\FindItemUseCase;
 use Libok\Application\UseCases\FindUserUseCase;
 use Libok\Application\UseCases\ListUsersUseCase;
 use Libok\Application\UseCases\RegisterUserUseCase;
 use Libok\Application\UseCases\UpdateUserUseCase;
 use Libok\Domain\Repositories\AuditLogRepositoryInterface;
+use Libok\Domain\Repositories\ItemRepositoryInterface;
 use Libok\Domain\Repositories\RefreshTokenRepositoryInterface;
 use Libok\Domain\Repositories\UserRepositoryInterface;
 use Libok\Framework\Controllers\Api\AuthController as ApiAuthController;
+use Libok\Framework\Controllers\Api\ItemController;
 use Libok\Framework\Controllers\Api\UploadController;
 use Libok\Framework\Controllers\Api\UserController as ApiUserController;
 use Libok\Framework\Controllers\AuthController;
@@ -34,12 +39,17 @@ use Libok\Framework\Middleware\AuditMiddleware;
 use Libok\Framework\Middleware\AuthRateLimitMiddleware;
 use Libok\Framework\Middleware\OperatorMiddleware;
 use Libok\Framework\Middleware\RateLimitMiddleware;
+use Libok\Framework\Middleware\TenantResetMiddleware;
+use Libok\Framework\Middleware\TenantResolutionMiddleware;
 use Libok\Infrastructure\Cache\FilesystemCacheStore;
 use Libok\Infrastructure\Cache\FixedWindowRateLimiter;
 use Libok\Infrastructure\Observability\ContextSanitizer;
 use Libok\Infrastructure\Observability\JsonLogger;
 use Libok\Infrastructure\Observability\RequestContext;
+use Libok\Infrastructure\Persistence\Filters\TenantFilter;
+use Libok\Infrastructure\Persistence\Listeners\TenantAssignmentSubscriber;
 use Libok\Infrastructure\Persistence\Repositories\DoctrineAuditLogRepository;
+use Libok\Infrastructure\Persistence\Repositories\DoctrineItemRepository;
 use Libok\Infrastructure\Persistence\Repositories\DoctrineRefreshTokenRepository;
 use Libok\Infrastructure\Persistence\Repositories\DoctrineUserRepository;
 use Libok\Infrastructure\Services\AuditLogService;
@@ -49,12 +59,39 @@ use Libok\Infrastructure\Services\PasswordService;
 use Libok\Infrastructure\Storage\LocalPrivateStorage;
 use Libok\Infrastructure\Storage\NullMalwareScanner;
 use Libok\Infrastructure\Storage\S3CompatibleStorage;
+use Libok\Infrastructure\Tenancy\TenantContext;
 use Psr\Log\LoggerInterface;
 
+if (!function_exists('isMemorySqlite')) {
+    function isMemorySqlite(): bool
+    {
+        $driver = (string) ($_ENV['DB_DRIVER'] ?? 'pdo_pgsql');
+        $sqlitePath = (string) ($_ENV['DB_PATH'] ?? ':memory:');
+
+        return $driver === 'pdo_sqlite' && ($sqlitePath === ':memory:' || $sqlitePath === '');
+    }
+}
+
+if (!function_exists('sharedTenantContext')) {
+    function sharedTenantContext(): TenantContext
+    {
+        static $context = null;
+        if (!isMemorySqlite()) {
+            return new TenantContext();
+        }
+        if (!$context instanceof TenantContext) {
+            $context = new TenantContext();
+        }
+
+        return $context;
+    }
+}
+
 if (!function_exists('buildEntityManager')) {
-    function buildEntityManager(): EntityManagerInterface
+    function buildEntityManager(?TenantContext $tenantContext = null): EntityManagerInterface
     {
         static $memoryEm = null;
+        $tenantContext ??= sharedTenantContext();
 
         $paths = [LIBOK_SRC . '/Domain/Entities'];
         $isTest = strtolower((string) ($_ENV['APP_ENV'] ?? '')) === 'test';
@@ -85,10 +122,11 @@ if (!function_exists('buildEntityManager')) {
             cache: $cache,
         );
         $config->setAutoGenerateProxyClasses(Doctrine\ORM\Proxy\ProxyFactory::AUTOGENERATE_FILE_NOT_EXISTS);
+        $config->addFilter('tenant', TenantFilter::class);
 
         $driver = (string) ($_ENV['DB_DRIVER'] ?? 'pdo_pgsql');
         $sqlitePath = (string) ($_ENV['DB_PATH'] ?? ':memory:');
-        $useMemorySqlite = $driver === 'pdo_sqlite' && ($sqlitePath === ':memory:' || $sqlitePath === '');
+        $useMemorySqlite = isMemorySqlite();
 
         if ($useMemorySqlite && $memoryEm instanceof EntityManager && $memoryEm->isOpen()) {
             return $memoryEm;
@@ -118,8 +156,10 @@ if (!function_exists('buildEntityManager')) {
             ];
         }
 
-        $connection = DriverManager::getConnection($connectionParams, $config);
-        $entityManager = new EntityManager($connection, $config);
+        $eventManager = new EventManager();
+        $eventManager->addEventSubscriber(new TenantAssignmentSubscriber($tenantContext));
+        $connection = DriverManager::getConnection($connectionParams, $config, $eventManager);
+        $entityManager = new EntityManager($connection, $config, $eventManager);
 
         if ($useMemorySqlite) {
             $memoryEm = $entityManager;
@@ -131,7 +171,10 @@ if (!function_exists('buildEntityManager')) {
 
 $containerBuilder = new ContainerBuilder();
 $containerBuilder->addDefinitions([
-    EntityManagerInterface::class => DI\factory(static fn (): EntityManagerInterface => buildEntityManager()),
+    TenantContext::class => DI\factory(static fn (): TenantContext => sharedTenantContext()),
+    EntityManagerInterface::class => DI\factory(
+        static fn (TenantContext $tenantContext): EntityManagerInterface => buildEntityManager($tenantContext)
+    ),
     EntityManager::class => DI\get(EntityManagerInterface::class),
     Connection::class => DI\factory(
         static fn (EntityManagerInterface $entityManager): Connection => $entityManager->getConnection()
@@ -168,6 +211,7 @@ $containerBuilder->addDefinitions([
     UserRepositoryInterface::class => DI\autowire(DoctrineUserRepository::class),
     RefreshTokenRepositoryInterface::class => DI\autowire(DoctrineRefreshTokenRepository::class),
     AuditLogRepositoryInterface::class => DI\autowire(DoctrineAuditLogRepository::class),
+    ItemRepositoryInterface::class => DI\autowire(DoctrineItemRepository::class),
     LoginUseCase::class => DI\autowire(),
     LogoutUseCase::class => DI\autowire(),
     RefreshTokenUseCase::class => DI\autowire(),
@@ -177,11 +221,16 @@ $containerBuilder->addDefinitions([
     CreateUserUseCase::class => DI\autowire(),
     UpdateUserUseCase::class => DI\autowire(),
     DeleteUserUseCase::class => DI\autowire(),
+    CreateItemUseCase::class => DI\autowire(),
+    FindItemUseCase::class => DI\autowire(),
+    TenantResetMiddleware::class => DI\autowire(),
+    TenantResolutionMiddleware::class => DI\autowire(),
     HealthController::class => DI\autowire(),
     AuthController::class => DI\autowire(),
     ApiAuthController::class => DI\autowire(),
     ApiUserController::class => DI\autowire(),
     UploadController::class => DI\autowire(),
+    ItemController::class => DI\autowire(),
     UserController::class => DI\autowire(),
 ]);
 
