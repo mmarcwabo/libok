@@ -17,3 +17,12 @@ $logFile = $testStorage . DIRECTORY_SEPARATOR . 'app.log';
 putenv('LOG_DESTINATION=' . $logFile);
 $_ENV['LOG_DESTINATION'] = $logFile;
 $_SERVER['LOG_DESTINATION'] = $logFile;
+
+$jwtSecret = 'libok-test-jwt-secret-32-bytes!!';
+putenv('JWT_SECRET=' . $jwtSecret);
+$_ENV['JWT_SECRET'] = $jwtSecret;
+$_SERVER['JWT_SECRET'] = $jwtSecret;
+$_ENV['JWT_ACCESS_TTL'] = '900';
+$_ENV['JWT_REFRESH_TTL'] = '1209600';
+$_SERVER['JWT_ACCESS_TTL'] = '900';
+$_SERVER['JWT_REFRESH_TTL'] = '1209600';

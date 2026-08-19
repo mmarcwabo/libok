@@ -12,17 +12,27 @@ use Libok\Application\Contracts\CacheStoreInterface;
 use Libok\Application\Contracts\MalwareScannerInterface;
 use Libok\Application\Contracts\ObjectStorageInterface;
 use Libok\Application\Contracts\RateLimiterInterface;
+use Libok\Application\UseCases\Auth\LoginUseCase;
+use Libok\Application\UseCases\Auth\LogoutUseCase;
+use Libok\Application\UseCases\Auth\RefreshTokenUseCase;
+use Libok\Application\UseCases\RegisterUserUseCase;
+use Libok\Domain\Repositories\RefreshTokenRepositoryInterface;
 use Libok\Domain\Repositories\UserRepositoryInterface;
+use Libok\Framework\Controllers\Api\AuthController as ApiAuthController;
 use Libok\Framework\Controllers\AuthController;
 use Libok\Framework\Controllers\HealthController;
 use Libok\Framework\Controllers\UserController;
+use Libok\Framework\Middleware\AuthRateLimitMiddleware;
 use Libok\Framework\Middleware\RateLimitMiddleware;
 use Libok\Infrastructure\Cache\FilesystemCacheStore;
 use Libok\Infrastructure\Cache\FixedWindowRateLimiter;
 use Libok\Infrastructure\Observability\ContextSanitizer;
 use Libok\Infrastructure\Observability\JsonLogger;
 use Libok\Infrastructure\Observability\RequestContext;
+use Libok\Infrastructure\Persistence\Repositories\DoctrineRefreshTokenRepository;
 use Libok\Infrastructure\Persistence\Repositories\DoctrineUserRepository;
+use Libok\Infrastructure\Services\JwtService;
+use Libok\Infrastructure\Services\PasswordService;
 use Libok\Infrastructure\Storage\LocalPrivateStorage;
 use Libok\Infrastructure\Storage\NullMalwareScanner;
 use Psr\Log\LoggerInterface;
@@ -30,6 +40,8 @@ use Psr\Log\LoggerInterface;
 if (!function_exists('buildEntityManager')) {
     function buildEntityManager(): EntityManagerInterface
     {
+        static $memoryEm = null;
+
         $paths = [LIBOK_SRC . '/Domain/Entities'];
         $isDevMode = filter_var($_ENV['APP_DEBUG'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
@@ -60,11 +72,17 @@ if (!function_exists('buildEntityManager')) {
         $config->setAutoGenerateProxyClasses(Doctrine\ORM\Proxy\ProxyFactory::AUTOGENERATE_FILE_NOT_EXISTS);
 
         $driver = (string) ($_ENV['DB_DRIVER'] ?? 'pdo_pgsql');
+        $sqlitePath = (string) ($_ENV['DB_PATH'] ?? ':memory:');
+        $useMemorySqlite = $driver === 'pdo_sqlite' && ($sqlitePath === ':memory:' || $sqlitePath === '');
+
+        if ($useMemorySqlite && $memoryEm instanceof EntityManager && $memoryEm->isOpen()) {
+            return $memoryEm;
+        }
+
         if ($driver === 'pdo_sqlite') {
-            $path = (string) ($_ENV['DB_PATH'] ?? ':memory:');
-            $connectionParams = ($path === ':memory:' || $path === '')
+            $connectionParams = $useMemorySqlite
                 ? ['driver' => 'pdo_sqlite', 'memory' => true]
-                : ['driver' => 'pdo_sqlite', 'path' => $path];
+                : ['driver' => 'pdo_sqlite', 'path' => $sqlitePath];
         } else {
             $env = static function (string $key): string {
                 $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key);
@@ -86,8 +104,13 @@ if (!function_exists('buildEntityManager')) {
         }
 
         $connection = DriverManager::getConnection($connectionParams, $config);
+        $entityManager = new EntityManager($connection, $config);
 
-        return new EntityManager($connection, $config);
+        if ($useMemorySqlite) {
+            $memoryEm = $entityManager;
+        }
+
+        return $entityManager;
     }
 }
 
@@ -110,15 +133,24 @@ $containerBuilder->addDefinitions([
     RateLimitMiddleware::class => DI\autowire()
         ->constructorParameter('maxAttempts', 10)
         ->constructorParameter('windowSeconds', 900),
+    AuthRateLimitMiddleware::class => DI\autowire(),
     MalwareScannerInterface::class => DI\get(NullMalwareScanner::class),
     ObjectStorageInterface::class => DI\factory(static function (MalwareScannerInterface $scanner): ObjectStorageInterface {
         $root = (string) ($_ENV['STORAGE_PATH'] ?? LIBOK_STORAGE);
 
         return new LocalPrivateStorage($root, $scanner);
     }),
+    JwtService::class => DI\autowire(),
+    PasswordService::class => DI\autowire(),
     UserRepositoryInterface::class => DI\autowire(DoctrineUserRepository::class),
+    RefreshTokenRepositoryInterface::class => DI\autowire(DoctrineRefreshTokenRepository::class),
+    LoginUseCase::class => DI\autowire(),
+    LogoutUseCase::class => DI\autowire(),
+    RefreshTokenUseCase::class => DI\autowire(),
+    RegisterUserUseCase::class => DI\autowire(),
     HealthController::class => DI\autowire(),
     AuthController::class => DI\autowire(),
+    ApiAuthController::class => DI\autowire(),
     UserController::class => DI\autowire(),
 ]);
 

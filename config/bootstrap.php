@@ -24,6 +24,7 @@ $dotenv->safeLoad();
 $requiredEnv = [
     'CORS_ORIGIN',
     'STORAGE_PATH',
+    'JWT_SECRET',
 ];
 
 $mirrorKeys = array_merge($requiredEnv, [
@@ -42,6 +43,11 @@ $mirrorKeys = array_merge($requiredEnv, [
     'LOG_DESTINATION',
     'PUBLIC_STORAGE_PATH',
     'MAX_UPLOAD_MB',
+    'JWT_SECRET',
+    'JWT_SECRET_PREVIOUS',
+    'JWT_ACCESS_TTL',
+    'JWT_REFRESH_TTL',
+    'JWT_ALGORITHM',
 ]);
 
 foreach ($mirrorKeys as $key) {

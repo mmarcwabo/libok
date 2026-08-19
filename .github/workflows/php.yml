@@ -56,6 +56,7 @@ jobs:
         DB_DRIVER: pdo_sqlite
         DB_PATH: storage/ci.sqlite
         LOG_DESTINATION: php://stderr
+        JWT_SECRET: libok-test-jwt-secret-32-bytes!!
       run: |
         mkdir -p storage
         composer migrate

@@ -14,3 +14,6 @@ $_ENV['STORAGE_PATH'] = LIBOK_STORAGE;
 $_ENV['DB_DRIVER'] = 'pdo_sqlite';
 $_ENV['DB_PATH'] = ':memory:';
 $_ENV['LOG_DESTINATION'] = 'php://stderr';
+$_ENV['JWT_SECRET'] = 'libok-test-jwt-secret-32-bytes!!';
+$_ENV['JWT_ACCESS_TTL'] = '900';
+$_ENV['JWT_REFRESH_TTL'] = '1209600';
