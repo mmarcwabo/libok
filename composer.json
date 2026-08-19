@@ -1,6 +1,6 @@
 {
     "name": "libok/libok",
-    "description": "A clean architecture PHP project boilerplate.",
+    "description": "A clean architecture PHP kernel: JSON API first, optional HTML adapter.",
     "type": "project",
     "license": "MIT",
     "authors": [
@@ -11,21 +11,26 @@
     ],
     "require": {
         "php": ">=8.1",
-        "doctrine/orm": "~2.15",
         "doctrine/dbal": "~3.6",
-        "symfony/yaml": "~6.2",
-        "vlucas/phpdotenv": "~5.5",
+        "doctrine/migrations": "^3.8",
+        "doctrine/orm": "~2.15",
+        "php-di/php-di": "^7.0",
+        "psr/log": "^3.0",
         "ramsey/uuid": "~4.7",
+        "symfony/cache": "~7.3",
         "symfony/http-foundation": "~6.3",
-        "symfony/cache": "~7.3"
+        "symfony/yaml": "~6.2",
+        "vlucas/phpdotenv": "~5.5"
     },
     "require-dev": {
-        "phpunit/phpunit": "~10.0",
-        "phpstan/phpstan": "~2.1"
+        "friendsofphp/php-cs-fixer": "^3.64",
+        "phpstan/phpstan": "~2.1",
+        "phpunit/phpunit": "~10.0"
     },
     "autoload": {
         "psr-4": {
-            "Libok\\": "src/"
+            "Libok\\": "src/",
+            "Libok\\Migrations\\": "migrations/"
         }
     },
     "autoload-dev": {
@@ -33,12 +38,24 @@
             "Tests\\": "tests/"
         }
     },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    },
     "scripts": {
-        "schema-create": "vendor/bin/doctrine orm:schema-tool:create",
+        "test": "vendor/bin/phpunit --colors=always --display-deprecations --display-notices --display-warnings",
+        "phpstan": "vendor/bin/phpstan analyse --configuration=phpstan.neon --memory-limit=512M",
+        "cs": "vendor/bin/php-cs-fixer fix --dry-run --diff --ansi",
+        "cs-fix": "vendor/bin/php-cs-fixer fix --ansi",
+        "migrate": "@php vendor/bin/doctrine-migrations migrations:migrate --no-interaction",
+        "migrate-test": "@php vendor/bin/doctrine-migrations migrations:migrate --no-interaction",
+        "schema-validate": "@php bin/doctrine orm:validate-schema --skip-sync",
         "serve": [
             "Composer\\Config::disableProcessTimeout",
             "@php -S localhost:8000 -t public"
         ],
-        "test": "vendor/bin/phpunit --colors=always --display-deprecations --display-notices --display-warnings"
+        "post-install-cmd": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ]
     }
 }

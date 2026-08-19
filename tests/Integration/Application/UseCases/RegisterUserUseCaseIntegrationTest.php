@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Application\UseCases;
 
+use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Tools\SchemaTool;
 use Doctrine\ORM\Tools\Setup;
-use Doctrine\ORM\EntityManager;
 use Libok\Application\UseCases\RegisterUserUseCase;
 use Libok\Domain\Entities\User;
 use Libok\Infrastructure\Persistence\Repositories\DoctrineUserRepository;

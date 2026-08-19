@@ -11,11 +11,17 @@ permissions:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: "8.2"
+        extensions: pdo, pdo_sqlite
+        coverage: none
 
     - name: Validate composer.json and composer.lock
       run: composer validate --strict
@@ -32,5 +38,25 @@ jobs:
     - name: Install dependencies
       run: composer install --prefer-dist --no-progress
 
+    - name: Coding standards
+      run: composer cs
+
+    - name: Static analysis
+      run: composer phpstan
+
     - name: Run test suite
       run: composer test
+
+    - name: Migrate and validate schema
+      env:
+        APP_ENV: test
+        APP_DEBUG: "false"
+        CORS_ORIGIN: http://localhost:3000
+        STORAGE_PATH: storage
+        DB_DRIVER: pdo_sqlite
+        DB_PATH: storage/ci.sqlite
+        LOG_DESTINATION: php://stderr
+      run: |
+        mkdir -p storage
+        composer migrate
+        composer schema-validate

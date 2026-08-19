@@ -9,7 +9,9 @@ use Libok\Domain\Repositories\UserRepositoryInterface;
 
 class GetUserUseCase
 {
-    public function __construct(private readonly UserRepositoryInterface $userRepository) {}
+    public function __construct(private readonly UserRepositoryInterface $userRepository)
+    {
+    }
 
     public function execute(string $id): ?UserData
     {

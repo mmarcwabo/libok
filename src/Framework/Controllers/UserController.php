@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Libok\Framework\Controllers;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Libok\Application\UseCases\CreateUserUseCase;
 use Libok\Application\UseCases\DeleteUserUseCase;
 use Libok\Application\UseCases\GetUserUseCase;
@@ -12,118 +13,115 @@ use Libok\Application\UseCases\UpdateUserUseCase;
 use Libok\Infrastructure\Persistence\Repositories\DoctrineUserRepository;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class UserController extends BaseController
 {
-    /**
-     * Redirects to login if the user is not authenticated.
-     */
-    private function guard(): void
+    public function __construct(private readonly EntityManagerInterface $entityManager)
     {
-        if (!isset($_SESSION['user_id'])) {
-            (new RedirectResponse('/login'))->send();
-            exit();
-        }
     }
 
-    /**
-     * Displays the list of all users. Also serves as the homepage.
-     */
-    public function index(): void
+    private function guard(): ?Response
     {
-        $this->guard();
+        if (!isset($_SESSION['user_id'])) {
+            return new RedirectResponse('/login');
+        }
+
+        return null;
+    }
+
+    public function index(Request $request): Response
+    {
+        if ($redirect = $this->guard()) {
+            return $redirect;
+        }
         $userRepository = new DoctrineUserRepository($this->entityManager);
         $listUsersUseCase = new ListUsersUseCase($userRepository);
         $users = $listUsersUseCase->execute();
 
-        $this->render('users/index', ['users' => $users]);
+        return $this->render('users/index', ['users' => $users]);
     }
 
-    /**
-     * Shows the form for creating a new user.
-     */
-    public function create(): void
+    public function create(Request $request): Response
     {
-        $this->guard();
-        $this->render('users/create');
+        if ($redirect = $this->guard()) {
+            return $redirect;
+        }
+
+        return $this->render('users/create');
     }
 
-    /**
-     * Stores a new user in the database.
-     */
-    public function store(Request $request): void
+    public function store(Request $request): Response
     {
-        $this->guard();
+        if ($redirect = $this->guard()) {
+            return $redirect;
+        }
         $userRepository = new DoctrineUserRepository($this->entityManager);
         $createUserUseCase = new CreateUserUseCase($userRepository);
 
         try {
             $createUserUseCase->execute(
-                $request->request->get('name'),
-                $request->request->get('email'),
-                $request->request->get('password')
+                (string) $request->request->get('name', ''),
+                (string) $request->request->get('email', ''),
+                (string) $request->request->get('password', '')
             );
-            (new RedirectResponse('/users'))->send();
+
+            return new RedirectResponse('/users');
         } catch (\InvalidArgumentException $e) {
-            $this->render('users/create', ['error' => $e->getMessage()]);
+            return $this->render('users/create', ['error' => $e->getMessage()]);
         }
     }
 
-    /**
-     * Shows the form for editing an existing user.
-     */
-    public function edit(Request $request): void
+    public function edit(Request $request): Response
     {
-        $this->guard();
-        $userId = $request->query->get('id');
+        if ($redirect = $this->guard()) {
+            return $redirect;
+        }
+        $userId = (string) $request->query->get('id', '');
 
         $userRepository = new DoctrineUserRepository($this->entityManager);
         $getUserUseCase = new GetUserUseCase($userRepository);
         $user = $getUserUseCase->execute($userId);
 
         if (!$user) {
-            (new RedirectResponse('/users'))->send();
-            return;
+            return new RedirectResponse('/users');
         }
 
-        $this->render('users/edit', ['user' => $user]);
+        return $this->render('users/edit', ['user' => $user]);
     }
 
-    /**
-     * Updates an existing user in the database.
-     */
-    public function update(Request $request): void
+    public function update(Request $request): Response
     {
-        $this->guard();
+        if ($redirect = $this->guard()) {
+            return $redirect;
+        }
         $userRepository = new DoctrineUserRepository($this->entityManager);
         $updateUserUseCase = new UpdateUserUseCase($userRepository);
 
         $updateUserUseCase->execute(
-            $request->request->get('id'),
-            $request->request->get('name'),
-            $request->request->get('email')
+            (string) $request->request->get('id', ''),
+            (string) $request->request->get('name', ''),
+            (string) $request->request->get('email', '')
         );
 
-        (new RedirectResponse('/users'))->send();
+        return new RedirectResponse('/users');
     }
 
-    /**
-     * Deletes a user from the database.
-     */
-    public function delete(Request $request): void
+    public function delete(Request $request): Response
     {
-        $this->guard();
-        $userId = $request->request->get('id');
-
-        if ($userId === $_SESSION['user_id']) {
-            (new RedirectResponse('/users'))->send();
-            return;
+        if ($redirect = $this->guard()) {
+            return $redirect;
         }
-        
+        $userId = (string) $request->request->get('id', '');
+
+        if ($userId === ($_SESSION['user_id'] ?? '')) {
+            return new RedirectResponse('/users');
+        }
+
         $userRepository = new DoctrineUserRepository($this->entityManager);
         $deleteUserUseCase = new DeleteUserUseCase($userRepository);
         $deleteUserUseCase->execute($userId);
 
-        (new RedirectResponse('/users'))->send();
+        return new RedirectResponse('/users');
     }
 }

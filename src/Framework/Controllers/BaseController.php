@@ -4,36 +4,101 @@ declare(strict_types=1);
 
 namespace Libok\Framework\Controllers;
 
-use Doctrine\ORM\EntityManager;
+use Symfony\Component\HttpFoundation\Response;
 
 abstract class BaseController
 {
-    /**
-     * The BaseController constructor.
-     * All controllers that extend this class will have access to the EntityManager.
-     *
-     * @param \Doctrine\ORM\EntityManager $entityManager
-     */
-    public function __construct(protected readonly EntityManager $entityManager)
+    protected function json(mixed $data, int $status = 200, string $message = ''): Response
     {
+        return new Response(
+            json_encode(['success' => true, 'data' => $data, 'message' => $message], JSON_UNESCAPED_SLASHES),
+            $status,
+            [
+                'Content-Type' => 'application/json',
+                'Cache-Control' => 'private, no-store',
+            ]
+        );
+    }
+
+    protected function jsonCached(mixed $data, int $ttlSeconds = 60, string $message = ''): Response
+    {
+        return new Response(
+            json_encode(['success' => true, 'data' => $data, 'message' => $message], JSON_UNESCAPED_SLASHES),
+            200,
+            [
+                'Content-Type' => 'application/json',
+                'Cache-Control' => "private, max-age={$ttlSeconds}, stale-while-revalidate=30",
+            ]
+        );
+    }
+
+    protected function error(string $message, int $status = 400, string $code = ''): Response
+    {
+        if ($code === '') {
+            $code = match ($status) {
+                400 => 'validation',
+                401 => 'auth.expired',
+                403 => 'forbidden',
+                404 => 'http.not_found',
+                409 => 'conflict',
+                422 => 'unprocessable',
+                429 => 'rate_limited',
+                503 => 'unavailable',
+                default => 'internal_error',
+            };
+        }
+
+        return new Response(
+            json_encode(['success' => false, 'message' => $message, 'code' => $code], JSON_UNESCAPED_SLASHES),
+            $status,
+            [
+                'Content-Type' => 'application/json',
+                'Cache-Control' => 'no-store',
+            ]
+        );
     }
 
     /**
-     * Renders a view with the shared header and footer layout.
-     *
-     * @param string $view The path to the view file (e.g., 'auth/login').
-     * @param array $data Data to be extracted and made available to the view.
-     * @return void
+     * @param array<int, mixed> $items
      */
-    protected function render(string $view, array $data = []): void
+    protected function paginated(array $items, int $total, int $page, int $perPage, int $cacheTtl = 0): Response
     {
-        // Makes variables from the $data array available to the view
-        // e.g., $data['error'] becomes $error
-        extract($data);
+        $cacheHeader = $cacheTtl > 0
+            ? "private, max-age={$cacheTtl}, stale-while-revalidate=30"
+            : 'private, no-store';
 
-        // Include the view within the standard layout
-        require_once __DIR__ . "/../Views/layout/header.php";
-        require_once __DIR__ . "/../Views/{$view}.php";
-        require_once __DIR__ . "/../Views/layout/footer.php";
+        return new Response(
+            json_encode([
+                'success' => true,
+                'data' => $items,
+                'pagination' => [
+                    'total' => $total,
+                    'page' => $page,
+                    'per_page' => $perPage,
+                    'total_pages' => $perPage > 0 ? (int) ceil($total / $perPage) : 0,
+                ],
+            ], JSON_UNESCAPED_SLASHES),
+            200,
+            [
+                'Content-Type' => 'application/json',
+                'Cache-Control' => $cacheHeader,
+            ]
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    protected function render(string $view, array $data = []): Response
+    {
+        extract($data, EXTR_SKIP);
+
+        ob_start();
+        require __DIR__ . '/../Views/layout/header.php';
+        require __DIR__ . "/../Views/{$view}.php";
+        require __DIR__ . '/../Views/layout/footer.php';
+        $html = (string) ob_get_clean();
+
+        return new Response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
     }
 }

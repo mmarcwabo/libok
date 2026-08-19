@@ -71,7 +71,7 @@ class User
     {
         $this->password = $password;
     }
-    
+
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;

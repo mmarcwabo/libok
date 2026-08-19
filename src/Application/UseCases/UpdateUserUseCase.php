@@ -8,7 +8,9 @@ use Libok\Domain\Repositories\UserRepositoryInterface;
 
 class UpdateUserUseCase
 {
-    public function __construct(private readonly UserRepositoryInterface $userRepository) {}
+    public function __construct(private readonly UserRepositoryInterface $userRepository)
+    {
+    }
 
     public function execute(string $id, string $name, string $email): void
     {

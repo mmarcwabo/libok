@@ -1,3 +1,8 @@
 .env
 .phpunit.cache
+.php-cs-fixer.cache
 vendor
+/storage/cache
+/storage/test
+/storage/*.sqlite
+/storage/*.log

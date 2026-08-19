@@ -4,23 +4,29 @@ declare(strict_types=1);
 
 namespace Libok\Framework\Controllers;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Libok\Application\UseCases\LoginUserUseCase;
 use Libok\Application\UseCases\RegisterUserUseCase;
 use Libok\Infrastructure\Persistence\Repositories\DoctrineUserRepository;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class AuthController extends BaseController
 {
-    public function showLoginForm(): void
+    public function __construct(private readonly EntityManagerInterface $entityManager)
     {
-        $this->render('auth/login');
     }
 
-    public function login(Request $request): void
+    public function showLoginForm(Request $request): Response
     {
-        $email = $request->request->get('email');
-        $password = $request->request->get('password');
+        return $this->render('auth/login');
+    }
+
+    public function login(Request $request): Response
+    {
+        $email = (string) $request->request->get('email', '');
+        $password = (string) $request->request->get('password', '');
 
         $userRepository = new DoctrineUserRepository($this->entityManager);
         $loginUseCase = new LoginUserUseCase($userRepository);
@@ -29,37 +35,42 @@ class AuthController extends BaseController
         if ($user) {
             $_SESSION['user_id'] = $user->getId();
             $_SESSION['user_name'] = $user->getName();
-            (new RedirectResponse('/users'))->send();
-        } else {
-            $this->render('auth/login', ['error' => 'Invalid credentials']);
+
+            return new RedirectResponse('/users');
         }
-    }
-    
-    public function showRegistrationForm(): void
-    {
-        $this->render('auth/register');
+
+        return $this->render('auth/login', ['error' => 'Invalid credentials']);
     }
 
-    public function register(Request $request): void
+    public function showRegistrationForm(Request $request): Response
     {
-        $name = $request->request->get('name');
-        $email = $request->request->get('email');
-        $password = $request->request->get('password');
+        return $this->render('auth/register');
+    }
+
+    public function register(Request $request): Response
+    {
+        $name = (string) $request->request->get('name', '');
+        $email = (string) $request->request->get('email', '');
+        $password = (string) $request->request->get('password', '');
 
         $userRepository = new DoctrineUserRepository($this->entityManager);
         $registerUseCase = new RegisterUserUseCase($userRepository);
 
         try {
             $registerUseCase->execute($name, $email, $password);
-            (new RedirectResponse('/login'))->send();
+
+            return new RedirectResponse('/login');
         } catch (\InvalidArgumentException $e) {
-            $this->render('auth/register', ['error' => $e->getMessage()]);
+            return $this->render('auth/register', ['error' => $e->getMessage()]);
         }
     }
 
-    public function logout(): void
+    public function logout(Request $request): Response
     {
-        session_destroy();
-        (new RedirectResponse('/login'))->send();
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_destroy();
+        }
+
+        return new RedirectResponse('/login');
     }
 }

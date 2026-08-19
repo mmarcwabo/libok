@@ -1,20 +1,19 @@
 <?php
 
-// cli-config.php
-use Doctrine\ORM\Tools\Console\ConsoleRunner;
-use Doctrine\ORM\Tools\Console\EntityManagerProvider\SingleManagerProvider;
-use Dotenv\Dotenv;
-
-require_once __DIR__ . '/vendor/autoload.php';
-
-// Load environment variables
-$dotenv = Dotenv::createImmutable(__DIR__);
-$dotenv->load();
+declare(strict_types=1);
 
 require_once __DIR__ . '/config/bootstrap.php';
 
-$entityManager = getEntityManager();
+use Doctrine\Migrations\Configuration\EntityManager\ExistingEntityManager;
+use Doctrine\Migrations\Configuration\Migration\PhpFile;
+use Doctrine\Migrations\DependencyFactory;
+use Doctrine\ORM\EntityManagerInterface;
 
-ConsoleRunner::run(
-    new SingleManagerProvider($entityManager)
-);
+$container = require __DIR__ . '/config/services.php';
+
+/** @var EntityManagerInterface $em */
+$em = $container->get(EntityManagerInterface::class);
+
+$config = new PhpFile(__DIR__ . '/config/migrations.php');
+
+return DependencyFactory::fromEntityManager($config, new ExistingEntityManager($em));

@@ -10,6 +10,9 @@ interface UserRepositoryInterface
 {
     public function findById(string $id): ?User;
     public function findByEmail(string $email): ?User;
+    /**
+     * @return list<User>
+     */
     public function findAll(): array;
     public function save(User $user): void;
     public function delete(User $user): void;

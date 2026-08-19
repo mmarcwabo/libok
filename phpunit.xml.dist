@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="vendor/autoload.php"
+         bootstrap="tests/bootstrap.php"
          colors="true"
          displayDetailsOnTestsThatTriggerNotices="true"
          displayDetailsOnTestsThatTriggerWarnings="true"
@@ -13,9 +13,21 @@
         <testsuite name="Integration">
             <directory>tests/Integration</directory>
         </testsuite>
+        <testsuite name="Framework">
+            <directory>tests/Framework</directory>
+        </testsuite>
+        <testsuite name="Infrastructure">
+            <directory>tests/Infrastructure</directory>
+        </testsuite>
     </testsuites>
     <php>
-        <env name="DB_DRIVER" value="pdo_sqlite"/>
-        <env name="DB_PATH" value=":memory:"/>
+        <env name="APP_ENV" value="test" force="true"/>
+        <env name="APP_DEBUG" value="false" force="true"/>
+        <env name="APP_TIMEZONE" value="UTC" force="true"/>
+        <env name="DB_DRIVER" value="pdo_sqlite" force="true"/>
+        <env name="DB_PATH" value=":memory:" force="true"/>
+        <env name="CORS_ORIGIN" value="http://localhost:3000" force="true"/>
+        <env name="STORAGE_PATH" value="storage/test" force="true"/>
+        <env name="LOG_DESTINATION" value="storage/test/app.log" force="true"/>
     </php>
 </phpunit>

@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace Libok\Infrastructure\Persistence\Repositories;
 
-use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Libok\Domain\Entities\User;
 use Libok\Domain\Repositories\UserRepositoryInterface;
 
 class DoctrineUserRepository implements UserRepositoryInterface
 {
+    /** @var EntityRepository<User> */
     private readonly EntityRepository $repository;
 
-    public function __construct(private readonly EntityManager $entityManager)
+    public function __construct(private readonly EntityManagerInterface $entityManager)
     {
         $this->repository = $this->entityManager->getRepository(User::class);
     }
@@ -28,6 +29,9 @@ class DoctrineUserRepository implements UserRepositoryInterface
         return $this->repository->findOneBy(['email' => $email]);
     }
 
+    /**
+     * @return list<User>
+     */
     public function findAll(): array
     {
         return $this->repository->findAll();

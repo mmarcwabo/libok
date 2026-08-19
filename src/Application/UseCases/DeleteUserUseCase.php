@@ -8,7 +8,9 @@ use Libok\Domain\Repositories\UserRepositoryInterface;
 
 class DeleteUserUseCase
 {
-    public function __construct(private readonly UserRepositoryInterface $userRepository) {}
+    public function __construct(private readonly UserRepositoryInterface $userRepository)
+    {
+    }
 
     public function execute(string $id): void
     {
