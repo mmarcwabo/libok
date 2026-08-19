@@ -55,6 +55,42 @@ final class TenantIsolationHttpTest extends KernelTestCase
         self::assertSame($unknownPayload['code'], $foreignPayload['code']);
     }
 
+    public function testListUpdateAndDeleteDoNotLeakItemsAcrossOrganizations(): void
+    {
+        [$orgA, $cookiesA] = $this->seedOrgAndLogin('list-a', 'List A', 'list-a@example.test');
+        [$orgB, $cookiesB] = $this->seedOrgAndLogin('list-b', 'List B', 'list-b@example.test');
+
+        $created = $this->jsonRequest('POST', '/api/v1/items', [
+            'X-Organization' => $orgA->getId(),
+        ], $cookiesA, ['title' => 'Only in A']);
+        self::assertSame(201, $created->getStatusCode(), (string) $created->getContent());
+        $itemId = $this->decode((string) $created->getContent())['data']['id'];
+
+        $listB = $this->jsonRequest('GET', '/api/v1/items', [
+            'X-Organization' => $orgB->getId(),
+        ], $cookiesB);
+        self::assertSame(200, $listB->getStatusCode());
+        $ids = array_column($this->decode((string) $listB->getContent())['data'], 'id');
+        self::assertNotContains($itemId, $ids);
+
+        $updateB = $this->jsonRequest('PATCH', '/api/v1/items/' . $itemId, [
+            'X-Organization' => $orgB->getId(),
+        ], $cookiesB, ['title' => 'Hijacked']);
+        $deleteB = $this->jsonRequest('DELETE', '/api/v1/items/' . $itemId, [
+            'X-Organization' => $orgB->getId(),
+        ], $cookiesB);
+        self::assertSame(404, $updateB->getStatusCode());
+        self::assertSame(404, $deleteB->getStatusCode());
+        self::assertSame('Resource not found.', $this->decode((string) $updateB->getContent())['message']);
+        self::assertSame('http.not_found', $this->decode((string) $updateB->getContent())['code']);
+
+        $stillThere = $this->jsonRequest('GET', '/api/v1/items/' . $itemId, [
+            'X-Organization' => $orgA->getId(),
+        ], $cookiesA);
+        self::assertSame(200, $stillThere->getStatusCode());
+        self::assertSame('Only in A', $this->decode((string) $stillThere->getContent())['data']['title']);
+    }
+
     public function testDefaultMembershipIsUsedWhenOrganizationHeaderIsMissing(): void
     {
         [$orgA, $cookiesA] = $this->seedOrgAndLogin('default-org', 'Default Org', 'default-org@example.test');

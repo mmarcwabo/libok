@@ -24,9 +24,49 @@ class DoctrineItemRepository implements ItemRepositoryInterface
         return $this->repository->find($id);
     }
 
+    /**
+     * @return list<Item>
+     */
+    public function paginate(int $page, int $perPage, string $sortField, string $direction): array
+    {
+        $fieldMap = [
+            'created_at' => 'i.createdAt',
+            'title' => 'i.title',
+        ];
+        $order = $fieldMap[$sortField] ?? 'i.createdAt';
+        $dir = strtoupper($direction) === 'ASC' ? 'ASC' : 'DESC';
+
+        /** @var list<Item> $rows */
+        $rows = $this->entityManager->createQueryBuilder()
+            ->select('i')
+            ->from(Item::class, 'i')
+            ->orderBy($order, $dir)
+            ->setFirstResult(max(0, ($page - 1) * $perPage))
+            ->setMaxResults($perPage)
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
+    public function countAll(): int
+    {
+        return (int) $this->entityManager->createQueryBuilder()
+            ->select('COUNT(i.id)')
+            ->from(Item::class, 'i')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     public function save(Item $item): void
     {
         $this->entityManager->persist($item);
+        $this->entityManager->flush();
+    }
+
+    public function delete(Item $item): void
+    {
+        $this->entityManager->remove($item);
         $this->entityManager->flush();
     }
 }

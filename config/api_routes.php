@@ -31,8 +31,11 @@ return static function (Router $router): void {
         $r->delete('/users/{id}', [UserController::class, 'destroy'], $operator);
 
         $tenant = ['auth', 'tenant'];
+        $r->get('/items', [ItemController::class, 'index'], $tenant);
         $r->post('/items', [ItemController::class, 'store'], $tenant);
         $r->get('/items/{id}', [ItemController::class, 'show'], $tenant);
+        $r->patch('/items/{id}', [ItemController::class, 'update'], $tenant);
+        $r->delete('/items/{id}', [ItemController::class, 'destroy'], $tenant);
     };
 
     $apiMiddleware = ['cors', 'security', 'json', 'idempotency', 'audit'];

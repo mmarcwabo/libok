@@ -21,11 +21,14 @@ use Libok\Application\UseCases\Auth\LogoutUseCase;
 use Libok\Application\UseCases\Auth\RefreshTokenUseCase;
 use Libok\Application\UseCases\CreateItemUseCase;
 use Libok\Application\UseCases\CreateUserUseCase;
+use Libok\Application\UseCases\DeleteItemUseCase;
 use Libok\Application\UseCases\DeleteUserUseCase;
 use Libok\Application\UseCases\FindItemUseCase;
 use Libok\Application\UseCases\FindUserUseCase;
+use Libok\Application\UseCases\ListItemsUseCase;
 use Libok\Application\UseCases\ListUsersUseCase;
 use Libok\Application\UseCases\RegisterUserUseCase;
+use Libok\Application\UseCases\UpdateItemUseCase;
 use Libok\Application\UseCases\UpdateUserUseCase;
 use Libok\Domain\Repositories\AuditLogRepositoryInterface;
 use Libok\Domain\Repositories\ItemRepositoryInterface;
@@ -270,7 +273,10 @@ $containerBuilder->addDefinitions([
     UpdateUserUseCase::class => DI\autowire(),
     DeleteUserUseCase::class => DI\autowire(),
     CreateItemUseCase::class => DI\autowire(),
+    ListItemsUseCase::class => DI\autowire(),
     FindItemUseCase::class => DI\autowire(),
+    UpdateItemUseCase::class => DI\autowire(),
+    DeleteItemUseCase::class => DI\autowire(),
     TenantResetMiddleware::class => DI\autowire(),
     TenantResolutionMiddleware::class => DI\autowire(),
     HealthController::class => DI\autowire(),

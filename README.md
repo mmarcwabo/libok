@@ -2,17 +2,7 @@
 
 An API-first PHP kernel with an optional Bootstrap HTML adapter.
 
-JSON under `/api/v1` is the primary interface. The HTML login and user screens are a demo client of the same use cases.
-
-## Features
-
-- JSON envelope (`success` / `data` / `message` / `code`)
-- Middleware pipeline (request id, CORS allow-list, security headers)
-- Doctrine ORM + **migrations** (MySQL, PostgreSQL, SQLite)
-- Cookie JWT auth (`/api/v1/auth/*`, `/api/v1/me`) with roles loaded from the database
-- Health probes: `GET /api/v1/health/live` and `GET /api/v1/health/ready`
-- JSON logs on stderr with request ids
-- Optional HTML adapter (Bootstrap 5)
+JSON under `/api/v1` is the primary interface. The HTML login and user screens are a demo client of the same use cases. See [docs/KERNEL.md](docs/KERNEL.md) for core vs module.
 
 ## Requirements
 
@@ -20,11 +10,19 @@ JSON under `/api/v1` is the primary interface. The HTML login and user screens a
 - Composer
 - A database (PostgreSQL recommended; MySQL and SQLite are supported)
 
-## Installation
+## Create a project
 
 ```bash
-git clone https://github.com/mmarcwabo/libok.git
-cd libok
+composer create-project --repository='{"type":"vcs","url":"https://github.com/mmarcwabo/libok.git"}' libok/libok my-app
+cd my-app
+cp .env.example .env
+```
+
+Or clone a tagged release:
+
+```bash
+git clone --branch v0.1.0 https://github.com/mmarcwabo/libok.git my-app
+cd my-app
 composer install
 cp .env.example .env
 ```
@@ -33,6 +31,7 @@ Set `DB_*`, `CORS_ORIGIN`, and `JWT_SECRET` (at least 32 random bytes) in `.env`
 
 ```bash
 composer migrate
+composer test
 composer serve
 ```
 
@@ -45,6 +44,14 @@ curl -c cookies.txt -H "Content-Type: application/json" -d "{\"name\":\"Ada\",\"
 curl -b cookies.txt -c cookies.txt -H "Content-Type: application/json" -d "{\"email\":\"ada@example.test\",\"password\":\"password123\"}" http://localhost:8000/api/v1/auth/login
 curl -b cookies.txt http://localhost:8000/api/v1/me
 ```
+
+Welcome mail is written to the outbox on register. Run a worker (SMTP is not required for the HTTP 201):
+
+```bash
+php bin/libok worker --once
+```
+
+API contract: [docs/openapi-v1.yaml](docs/openapi-v1.yaml). Sample tenant-owned resource: `GET/POST /api/v1/items`, `GET/PATCH/DELETE /api/v1/items/{id}` (send `X-Organization` after you join an organization).
 
 ## Quality
 
